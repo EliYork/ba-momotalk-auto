@@ -20,8 +20,16 @@ try {
     }
     & $python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'
     if ($LASTEXITCODE -ne 0) { throw '项目 .venv 的 Python 版本过旧或无法运行。请删除项目目录中的 .venv 后重新启动，以使用 Python 3.10 或更新版本重建。' }
-    & $python -c 'import numpy, PIL, cv2' 2>$null
-    if ($LASTEXITCODE -ne 0) {
+    # Missing imports are an expected probe result in a new virtual environment.
+    $previousErrorPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $python -c 'import numpy, PIL, cv2' 2>$null
+        $dependencyExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorPreference
+    }
+    if ($dependencyExitCode -ne 0) {
         Write-Host '正在安装运行依赖到项目虚拟环境……'
         & $python -m pip install -r (Join-Path $PSScriptRoot 'requirements.txt')
         if ($LASTEXITCODE -ne 0) { throw '依赖安装失败，请检查网络后重试。' }
